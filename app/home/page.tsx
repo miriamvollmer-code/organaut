@@ -37,13 +37,22 @@ export default function Home() {
             Willkommen, {PROFIL_NAMEN[profil]}!
           </p>
         </div>
-        <button
-          onClick={() => { localStorage.removeItem("organaut-profil"); router.push("/"); }}
-          className="text-sm px-4 py-2 rounded-2xl"
-          style={{ background: "#EEE4D0", color: "#6B4A28", border: "1px solid #D4C4A0", fontFamily: "Georgia, serif" }}
-        >
-          ← Wechseln
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => router.push("/pin-aendern")}
+            className="text-sm px-3 py-2 rounded-2xl"
+            style={{ background: "#EEE4D0", color: "#6B4A28", border: "1px solid #D4C4A0", fontFamily: "Georgia, serif" }}
+          >
+            🔑
+          </button>
+          <button
+            onClick={() => { localStorage.removeItem("organaut-profil"); router.push("/"); }}
+            className="text-sm px-4 py-2 rounded-2xl"
+            style={{ background: "#EEE4D0", color: "#6B4A28", border: "1px solid #D4C4A0", fontFamily: "Georgia, serif" }}
+          >
+            ← Wechseln
+          </button>
+        </div>
       </header>
 
       {/* Dünner farbiger Akzentstreifen */}
