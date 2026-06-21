@@ -177,9 +177,9 @@ const Bulldogge = ({ variante }: { variante: "miriam" | "jan" | "franz" }) => {
 };
 
 const PROFILE = [
-  { id: "miriam", name: "Miriam", farbe: "#C4847A", hintergrund: "#F5E8E0", variante: "miriam" as const },
-  { id: "jan",    name: "Jan",    farbe: "#7A9EB4", hintergrund: "#E0EAF0", variante: "jan" as const },
-  { id: "franz",  name: "Franz",  farbe: "#C47A3A", hintergrund: "#F0E8DC", variante: "franz" as const },
+  { id: "miriam", name: "Miriam", farbe: "#C4847A", hintergrund: "#F5E8E0", bild: "/Miriam.png", variante: "miriam" as const },
+  { id: "jan",    name: "Jan",    farbe: "#7A9EB4", hintergrund: "#E0EAF0", bild: "/Jan.png",    variante: "jan" as const },
+  { id: "franz",  name: "Franz",  farbe: "#C47A3A", hintergrund: "#F0E8DC", bild: "/Franz.png",  variante: "franz" as const },
 ];
 
 export default function ProfilAuswahl() {
@@ -228,9 +228,11 @@ export default function ProfilAuswahl() {
   const profil = ausgewaehlt ? PROFILE.find(p => p.id === ausgewaehlt.id)! : null;
 
   return (
-    <main className="min-h-screen flex flex-col" style={{ background: "linear-gradient(180deg, #A8C4D8 0%, #C8BEA0 45%, #EEE8D8 100%)" }}>
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: "200px", pointerEvents: "none", zIndex: 0 }}>
-        <BerlinSkyline />
+    <main className="min-h-screen flex flex-col" style={{ background: "#C8BEA0" }}>
+      {/* Berlin-Hintergrundbild */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
+        <img src="/berlin.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", opacity: 0.55 }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(168,196,216,0.3) 0%, rgba(238,232,216,0.55) 100%)" }} />
       </div>
 
       <div className="flex flex-col items-center justify-center flex-1 px-6 py-10" style={{ position: "relative", zIndex: 1 }}>
@@ -238,15 +240,15 @@ export default function ProfilAuswahl() {
         {!ausgewaehlt ? (
           <>
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold mb-1" style={{ color: "#2C1408", fontFamily: "Georgia, serif" }}>🚀 Organaut</h1>
+              <h1 className="text-4xl font-bold mb-1" style={{ color: "#2C1408", fontFamily: "Georgia, serif" }}>Organaut</h1>
               <p className="text-sm mt-1" style={{ color: "#5A3818", fontFamily: "Georgia, serif", fontStyle: "italic" }}>Wer macht was</p>
             </div>
             <div className="flex flex-col gap-4 w-full max-w-xs">
               {PROFILE.map((p) => (
                 <button key={p.id} onClick={() => profilWaehlen(p)}
-                  className="flex items-center gap-5 rounded-3xl px-5 py-3 transition-transform hover:scale-105 active:scale-95"
+                  className="flex items-center gap-5 rounded-3xl px-5 py-4 transition-transform hover:scale-105 active:scale-95"
                   style={{ background: p.hintergrund, border: `2px solid ${p.farbe}`, boxShadow: `0 6px 20px ${p.farbe}44` }}>
-                  <Bulldogge variante={p.variante} />
+                  <img src={p.bild} alt={p.name} style={{ width: 80, height: 80, objectFit: "contain" }} />
                   <span className="text-2xl font-bold" style={{ color: "#2C1408", fontFamily: "Georgia, serif" }}>{p.name}</span>
                 </button>
               ))}
@@ -257,7 +259,7 @@ export default function ProfilAuswahl() {
             <button onClick={() => setAusgewaehlt(null)} className="self-start mb-4 text-sm" style={{ color: "#5A3818", fontFamily: "Georgia, serif" }}>← Zurück</button>
 
             <div className="rounded-3xl px-8 py-6 w-full text-center" style={{ background: profil!.hintergrund, border: `2px solid ${profil!.farbe}`, boxShadow: `0 6px 20px ${profil!.farbe}44` }}>
-              <Bulldogge variante={profil!.variante} />
+              <img src={profil!.bild} alt={profil!.name} style={{ width: 96, height: 96, objectFit: "contain", margin: "0 auto" }} />
               <p className="text-xl font-bold mt-2 mb-6" style={{ color: "#2C1408", fontFamily: "Georgia, serif" }}>{profil!.name}</p>
 
               {/* PIN-Punkte */}

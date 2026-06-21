@@ -32,7 +32,7 @@ export default function Home() {
     <main className="min-h-screen" style={{ background: "linear-gradient(180deg, #C8D8E4 0%, #D8CEB0 35%, #EEE8D8 100%)" }}>
       <header className="px-6 py-5 flex items-center justify-between" style={{ background: "rgba(250,245,233,0.85)", backdropFilter: "blur(8px)", borderBottom: "1px solid #D4C4A0" }}>
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: "#3A1E08", fontFamily: "Georgia, serif" }}>🚀 Organaut</h1>
+          <h1 className="text-2xl font-bold" style={{ color: "#3A1E08", fontFamily: "Georgia, serif" }}>Organaut</h1>
           <p className="text-sm mt-0.5" style={{ color: "#6B4A28", fontStyle: "italic", fontFamily: "Georgia, serif" }}>
             Willkommen, {PROFIL_NAMEN[profil]}!
           </p>
