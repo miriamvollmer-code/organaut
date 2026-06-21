@@ -1,19 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
 
 const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-const STORAGE_KEY = "organaut-kalender";
 const PROFIL_EMOJI: Record<string, string> = { miriam: "👩", jan: "👨", franz: "🧒" };
 
-type Termin = { datum: string; text: string; von: string };
-
-function laden(): Termin[] {
-  try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : []; }
-  catch { return []; }
-}
-function speichern(t: Termin[]) { localStorage.setItem(STORAGE_KEY, JSON.stringify(t)); }
+type Termin = { id: number; datum: string; text: string; von: string };
 
 export default function Kalender() {
   const heute = new Date();
@@ -26,10 +20,13 @@ export default function Kalender() {
 
   useEffect(() => {
     setProfil(localStorage.getItem("organaut-profil") ?? "");
-    setTermine(laden());
+    laden();
   }, []);
 
-  const aktualisieren = (neu: Termin[]) => { setTermine(neu); speichern(neu); };
+  const laden = async () => {
+    const { data } = await supabase.from("kalender").select("*").order("datum");
+    if (data) setTermine(data);
+  };
 
   const ersterTag = new Date(jahr, monat, 1).getDay();
   const versatz = ersterTag === 0 ? 6 : ersterTag - 1;
@@ -41,14 +38,17 @@ export default function Kalender() {
   const datumStr = (tag: number) => `${jahr}-${String(monat+1).padStart(2,"0")}-${String(tag).padStart(2,"0")}`;
   const termineAmTag = (tag: number) => termine.filter(t => t.datum === datumStr(tag));
 
-  const terminHinzufuegen = () => {
+  const terminHinzufuegen = async () => {
     if (!ausgewaehlt || !eingabe.trim()) return;
-    aktualisieren([...termine, { datum: ausgewaehlt, text: eingabe.trim(), von: profil }]);
+    const { data } = await supabase.from("kalender").insert({ datum: ausgewaehlt, text: eingabe.trim(), von: profil }).select().single();
+    if (data) setTermine(prev => [...prev, data]);
     setEingabe("");
   };
 
-  const terminLoeschen = (datum: string, text: string) =>
-    aktualisieren(termine.filter(t => !(t.datum === datum && t.text === text)));
+  const terminLoeschen = async (id: number) => {
+    await supabase.from("kalender").delete().eq("id", id);
+    setTermine(prev => prev.filter(t => t.id !== id));
+  };
 
   const ausgewaehltTermine = ausgewaehlt ? termine.filter(t => t.datum === ausgewaehlt) : [];
 
@@ -101,11 +101,11 @@ export default function Kalender() {
             <h2 className="font-semibold text-gray-800 mb-3">
               {new Date(ausgewaehlt + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })}
             </h2>
-            {ausgewaehltTermine.map((t, i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100">
+            {ausgewaehltTermine.map(t => (
+              <div key={t.id} className="flex items-center justify-between py-2 border-b border-gray-100">
                 <span className="text-gray-700 flex-1">{t.text}</span>
                 {t.von && <span className="text-sm mr-2">{PROFIL_EMOJI[t.von]}</span>}
-                <button onClick={() => terminLoeschen(t.datum, t.text)} className="text-gray-400 hover:text-red-500">✕</button>
+                <button onClick={() => terminLoeschen(t.id)} className="text-gray-400 hover:text-red-500">✕</button>
               </div>
             ))}
             <div className="flex gap-2 mt-3">

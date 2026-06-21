@@ -1,65 +1,55 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
 import { benachrichtigen } from "../benachrichtigung";
 
 type Artikel = { id: number; name: string; erledigt: boolean; von: string };
 
-const STORAGE_KEY = "organaut-einkauf";
-
-function laden(): Artikel[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [
-      { id: 1, name: "Milch", erledigt: false, von: "" },
-      { id: 2, name: "Brot", erledigt: false, von: "" },
-    ];
-  } catch { return []; }
-}
-
-function speichern(artikel: Artikel[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(artikel));
-}
+const PROFIL_EMOJI: Record<string, string> = { miriam: "👩", jan: "👨", franz: "🧒" };
 
 export default function Einkauf() {
   const [artikel, setArtikel] = useState<Artikel[]>([]);
   const [eingabe, setEingabe] = useState("");
   const [profil, setProfil] = useState("");
-  const [bereit, setBereit] = useState(false);
 
   useEffect(() => {
     setProfil(localStorage.getItem("organaut-profil") ?? "");
-    setArtikel(laden());
-    setBereit(true);
+    laden();
   }, []);
 
-  const aktualisieren = (neu: Artikel[]) => {
-    setArtikel(neu);
-    speichern(neu);
+  const laden = async () => {
+    const { data } = await supabase.from("einkauf").select("*").order("id");
+    if (data) setArtikel(data);
   };
 
-  const hinzufuegen = () => {
+  const hinzufuegen = async () => {
     if (!eingabe.trim()) return;
-    aktualisieren([...artikel, { id: Date.now(), name: eingabe.trim(), erledigt: false, von: profil }]);
+    const { data } = await supabase.from("einkauf").insert({ name: eingabe.trim(), von: profil }).select().single();
+    if (data) setArtikel(prev => [...prev, data]);
     benachrichtigen(profil, "🛒 Einkauf", eingabe.trim());
     setEingabe("");
   };
 
-  const umschalten = (id: number) =>
-    aktualisieren(artikel.map(a => a.id === id ? { ...a, erledigt: !a.erledigt, von: profil } : a));
+  const umschalten = async (a: Artikel) => {
+    const neu = !a.erledigt;
+    await supabase.from("einkauf").update({ erledigt: neu, von: profil }).eq("id", a.id);
+    setArtikel(prev => prev.map(x => x.id === a.id ? { ...x, erledigt: neu, von: profil } : x));
+  };
 
-  const loeschen = (id: number) =>
-    aktualisieren(artikel.filter(a => a.id !== id));
+  const loeschen = async (id: number) => {
+    await supabase.from("einkauf").delete().eq("id", id);
+    setArtikel(prev => prev.filter(a => a.id !== id));
+  };
 
-  const erledigtLoeschen = () =>
-    aktualisieren(artikel.filter(a => !a.erledigt));
-
-  const PROFIL_EMOJI: Record<string, string> = { miriam: "👩", jan: "👨", franz: "🧒" };
+  const erledigtLoeschen = async () => {
+    const ids = artikel.filter(a => a.erledigt).map(a => a.id);
+    await supabase.from("einkauf").delete().in("id", ids);
+    setArtikel(prev => prev.filter(a => !a.erledigt));
+  };
 
   const offen = artikel.filter(a => !a.erledigt);
   const erledigt = artikel.filter(a => a.erledigt);
-
-  if (!bereit) return null;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -83,7 +73,7 @@ export default function Einkauf() {
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           {offen.map(a => (
             <div key={a.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-              <button onClick={() => umschalten(a.id)} className="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-green-400 flex-shrink-0" />
+              <button onClick={() => umschalten(a)} className="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-green-400 flex-shrink-0" />
               <span className="flex-1 text-gray-700">{a.name}</span>
               {a.von && <span className="text-sm" title={a.von}>{PROFIL_EMOJI[a.von]}</span>}
               <button onClick={() => loeschen(a.id)} className="text-gray-300 hover:text-red-400">✕</button>
@@ -103,7 +93,7 @@ export default function Einkauf() {
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden opacity-70">
               {erledigt.map(a => (
                 <div key={a.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-                  <button onClick={() => umschalten(a.id)} className="w-6 h-6 rounded-full bg-green-400 flex-shrink-0 flex items-center justify-center text-white text-xs">✓</button>
+                  <button onClick={() => umschalten(a)} className="w-6 h-6 rounded-full bg-green-400 flex-shrink-0 flex items-center justify-center text-white text-xs">✓</button>
                   <span className="flex-1 text-gray-400 line-through">{a.name}</span>
                   {a.von && <span className="text-sm" title={`erledigt von ${a.von}`}>{PROFIL_EMOJI[a.von]} ✓</span>}
                 </div>

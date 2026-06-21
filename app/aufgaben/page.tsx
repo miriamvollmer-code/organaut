@@ -1,11 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
 import { benachrichtigen } from "../benachrichtigung";
 
-type Aufgabe = { id: number; text: string; person: string; erledigt: boolean; erledigtVon: string };
+type Aufgabe = { id: number; text: string; person: string; erledigt: boolean; erledigt_von: string };
 
-const STORAGE_KEY = "organaut-aufgaben";
 const PERSONEN = ["Alle", "Miriam", "Jan", "Franz"];
 const PERSON_FARBEN: Record<string, string> = {
   Miriam: "bg-pink-100 text-pink-700",
@@ -14,55 +14,43 @@ const PERSON_FARBEN: Record<string, string> = {
 };
 const PROFIL_EMOJI: Record<string, string> = { miriam: "👩", jan: "👨", franz: "🧒" };
 
-const STANDARD: Aufgabe[] = [
-  { id: 1, text: "Spülmaschine ausräumen", person: "Franz", erledigt: false, erledigtVon: "" },
-  { id: 2, text: "Einkaufen", person: "Miriam", erledigt: false, erledigtVon: "" },
-];
-
-function laden(): Aufgabe[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : STANDARD;
-  } catch { return STANDARD; }
-}
-
-function speichern(aufgaben: Aufgabe[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(aufgaben));
-}
-
 export default function Aufgaben() {
   const [aufgaben, setAufgaben] = useState<Aufgabe[]>([]);
   const [eingabe, setEingabe] = useState("");
   const [person, setPerson] = useState("Miriam");
   const [filter, setFilter] = useState("Alle");
   const [profil, setProfil] = useState("");
-  const [bereit, setBereit] = useState(false);
 
   useEffect(() => {
     setProfil(localStorage.getItem("organaut-profil") ?? "");
-    setAufgaben(laden());
-    setBereit(true);
+    laden();
   }, []);
 
-  const aktualisieren = (neu: Aufgabe[]) => { setAufgaben(neu); speichern(neu); };
+  const laden = async () => {
+    const { data } = await supabase.from("aufgaben").select("*").order("id");
+    if (data) setAufgaben(data);
+  };
 
-  const hinzufuegen = () => {
+  const hinzufuegen = async () => {
     if (!eingabe.trim()) return;
-    aktualisieren([...aufgaben, { id: Date.now(), text: eingabe.trim(), person, erledigt: false, erledigtVon: "" }]);
+    const { data } = await supabase.from("aufgaben").insert({ text: eingabe.trim(), person, erledigt_von: "" }).select().single();
+    if (data) setAufgaben(prev => [...prev, data]);
     benachrichtigen(profil, `✅ Aufgabe für ${person}`, eingabe.trim());
     setEingabe("");
   };
 
-  const umschalten = (id: number) =>
-    aktualisieren(aufgaben.map(a => a.id === id
-      ? { ...a, erledigt: !a.erledigt, erledigtVon: !a.erledigt ? profil : "" }
-      : a));
+  const umschalten = async (a: Aufgabe) => {
+    const neu = !a.erledigt;
+    await supabase.from("aufgaben").update({ erledigt: neu, erledigt_von: neu ? profil : "" }).eq("id", a.id);
+    setAufgaben(prev => prev.map(x => x.id === a.id ? { ...x, erledigt: neu, erledigt_von: neu ? profil : "" } : x));
+  };
 
-  const loeschen = (id: number) => aktualisieren(aufgaben.filter(a => a.id !== id));
+  const loeschen = async (id: number) => {
+    await supabase.from("aufgaben").delete().eq("id", id);
+    setAufgaben(prev => prev.filter(a => a.id !== id));
+  };
 
   const gefiltert = filter === "Alle" ? aufgaben : aufgaben.filter(a => a.person === filter);
-
-  if (!bereit) return null;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -114,7 +102,7 @@ export default function Aufgaben() {
           {gefiltert.map(a => (
             <div key={a.id} className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 ${a.erledigt ? "opacity-50" : ""}`}>
               <button
-                onClick={() => umschalten(a.id)}
+                onClick={() => umschalten(a)}
                 className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center text-white text-xs transition-colors
                   ${a.erledigt ? "bg-yellow-400 border-yellow-400" : "border-gray-300 hover:border-yellow-400"}`}
               >
@@ -122,7 +110,7 @@ export default function Aufgaben() {
               </button>
               <span className={`flex-1 text-gray-700 ${a.erledigt ? "line-through" : ""}`}>{a.text}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full ${PERSON_FARBEN[a.person]}`}>{a.person}</span>
-              {a.erledigtVon && <span className="text-sm">{PROFIL_EMOJI[a.erledigtVon]}</span>}
+              {a.erledigt_von && <span className="text-sm">{PROFIL_EMOJI[a.erledigt_von]}</span>}
               <button onClick={() => loeschen(a.id)} className="text-gray-300 hover:text-red-400 ml-1">✕</button>
             </div>
           ))}

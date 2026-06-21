@@ -1,22 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { supabase } from "../supabase";
 
 type Notiz = { id: number; titel: string; inhalt: string; farbe: string; von: string; geaendert: string };
 
 const FARBEN = ["bg-yellow-100", "bg-blue-100", "bg-green-100", "bg-pink-100", "bg-purple-100"];
-const STORAGE_KEY = "organaut-notizen";
 const PROFIL_EMOJI: Record<string, string> = { miriam: "👩", jan: "👨", franz: "🧒" };
-
-const STANDARD: Notiz[] = [
-  { id: 1, titel: "Lieblingsrezept", inhalt: "Pasta mit Tomatensoße: Zwiebeln anbraten, Tomaten dazu, 20 Min köcheln.", farbe: "bg-yellow-100", von: "", geaendert: "" },
-];
-
-function laden(): Notiz[] {
-  try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : STANDARD; }
-  catch { return STANDARD; }
-}
-function speichern(n: Notiz[]) { localStorage.setItem(STORAGE_KEY, JSON.stringify(n)); }
 
 export default function Notizen() {
   const [notizen, setNotizen] = useState<Notiz[]>([]);
@@ -29,18 +19,23 @@ export default function Notizen() {
 
   useEffect(() => {
     setProfil(localStorage.getItem("organaut-profil") ?? "");
-    setNotizen(laden());
+    laden();
   }, []);
 
-  const aktualisieren = (neu: Notiz[]) => { setNotizen(neu); speichern(neu); };
+  const laden = async () => {
+    const { data } = await supabase.from("notizen").select("*").order("id");
+    if (data) setNotizen(data);
+  };
 
-  const speichernNotiz = () => {
+  const speichernNotiz = async () => {
     if (!titel.trim()) return;
     const jetzt = new Date().toLocaleString("de-DE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     if (offen) {
-      aktualisieren(notizen.map(n => n.id === offen.id ? { ...n, titel, inhalt, von: profil, geaendert: jetzt } : n));
+      await supabase.from("notizen").update({ titel, inhalt, von: profil, geaendert: jetzt }).eq("id", offen.id);
+      setNotizen(prev => prev.map(n => n.id === offen.id ? { ...n, titel, inhalt, von: profil, geaendert: jetzt } : n));
     } else {
-      aktualisieren([...notizen, { id: Date.now(), titel, inhalt, farbe, von: profil, geaendert: jetzt }]);
+      const { data } = await supabase.from("notizen").insert({ titel, inhalt, farbe, von: profil, geaendert: jetzt }).select().single();
+      if (data) setNotizen(prev => [...prev, data]);
     }
     setOffen(null);
     setNeu(false);
@@ -48,8 +43,9 @@ export default function Notizen() {
     setInhalt("");
   };
 
-  const loeschen = (id: number) => {
-    aktualisieren(notizen.filter(n => n.id !== id));
+  const loeschen = async (id: number) => {
+    await supabase.from("notizen").delete().eq("id", id);
+    setNotizen(prev => prev.filter(n => n.id !== id));
     setOffen(null);
   };
 
